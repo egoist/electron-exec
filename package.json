@@ -3,7 +3,6 @@
   "module": "./dist/index.mjs",
   "version": "0.0.1",
   "type": "module",
-  "private": true,
   "scripts": {
     "build": "tsdown",
     "build:watch": "tsdown --watch",
