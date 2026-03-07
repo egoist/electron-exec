@@ -1,5 +1,6 @@
 export {
   exec,
+  registerExecIPCHandler,
   type ExecOptions,
   type RendererExecProcess,
   type RendererExecStream,

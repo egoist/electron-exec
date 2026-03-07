@@ -12,6 +12,10 @@ type Listener = (...args: any[]) => void
 interface IpcRendererLike {
   send(channel: string, ...args: any[]): void
   on(channel: string, listener: (event: unknown, ...args: any[]) => void): void
+  removeListener(
+    channel: string,
+    listener: (event: unknown, ...args: any[]) => void,
+  ): void
 }
 
 export interface RendererExecStream {
@@ -185,40 +189,48 @@ class ExecProcess extends Emitter implements RendererExecProcess {
 
 const processes = new Map<string, ExecProcess>()
 
-getIpcRenderer().on(EVENT_CHANNEL, (_event, message: ExecEventMessage) => {
-  const proc = processes.get(message.id)
-  if (!proc) {
-    return
-  }
-
-  switch (message.type) {
-    case "spawn":
-      proc.pid = message.pid
-      proc.emit("spawn")
-      return
-    case "stdout":
-      proc.stdout.emit("data", new Uint8Array(message.data))
-      return
-    case "stderr":
-      proc.stderr.emit("data", new Uint8Array(message.data))
-      return
-    case "error": {
-      const error = Object.assign(new Error(message.error.message), {
-        name: message.error.name,
-        stack: message.error.stack,
-        code: message.error.code,
-      })
-      proc.emit("error", error)
+export function registerExecIPCHandler() {
+  const listener = (_event: unknown, message: ExecEventMessage) => {
+    const proc = processes.get(message.id)
+    if (!proc) {
       return
     }
-    case "close":
-      processes.delete(message.id)
-      proc.emit("close", message.code, message.signal)
-      proc.removeAllListeners()
-      proc.stdout.removeAllListeners()
-      proc.stderr.removeAllListeners()
+
+    switch (message.type) {
+      case "spawn":
+        proc.pid = message.pid
+        proc.emit("spawn")
+        return
+      case "stdout":
+        proc.stdout.emit("data", new Uint8Array(message.data))
+        return
+      case "stderr":
+        proc.stderr.emit("data", new Uint8Array(message.data))
+        return
+      case "error": {
+        const error = Object.assign(new Error(message.error.message), {
+          name: message.error.name,
+          stack: message.error.stack,
+          code: message.error.code,
+        })
+        proc.emit("error", error)
+        return
+      }
+      case "close":
+        processes.delete(message.id)
+        proc.emit("close", message.code, message.signal)
+        proc.removeAllListeners()
+        proc.stdout.removeAllListeners()
+        proc.stderr.removeAllListeners()
+    }
   }
-})
+
+  getIpcRenderer().on(EVENT_CHANNEL, listener)
+
+  return () => {
+    getIpcRenderer().removeListener(EVENT_CHANNEL, listener)
+  }
+}
 
 export function exec(
   command: string,

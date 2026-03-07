@@ -13,7 +13,9 @@ registerExecIPCHandler()
 In renderer process:
 
 ```ts
-import { exec } from "electron-exec"
+import { exec, registerExecIPCHandler } from "electron-exec"
+
+registerExecIPCHandler()
 
 const proc = exec("command", ["-flag"])
 
@@ -36,6 +38,8 @@ proc.on("close", (code) => {
   console.log(code)
 })
 ```
+
+`registerExecIPCHandler()` wires the renderer-side IPC event listener. Call it once during renderer startup before spawning processes.
 
 ## Demo app
 
@@ -62,5 +66,7 @@ One-off build:
 bun run example:build
 ```
 
-The example keeps `nodeIntegration` off for the renderer and exposes
-`ipcRenderer` through a preload script as `globalThis.ipcRenderer`.
+The example keeps `nodeIntegration` off for the renderer, exposes
+`ipcRenderer` through a preload script as `globalThis.ipcRenderer`, and
+registers the renderer IPC listener during startup in
+[`example/renderer.ts`](/Users/egoist/dev/electron-exec/example/renderer.ts).

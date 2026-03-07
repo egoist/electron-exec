@@ -19,11 +19,6 @@ type ManagedChildProcess = ChildProcess & {
   ): ManagedChildProcess
 }
 
-export interface RegisterExecIPCHandlerOptions {
-  channel?: string
-  eventChannel?: string
-}
-
 const owners = new Map<number, ProcessOwnerMap>()
 
 function serializeError(error: Error & { code?: string }): Extract<
@@ -38,12 +33,7 @@ function serializeError(error: Error & { code?: string }): Extract<
   }
 }
 
-export function registerExecIPCHandler(
-  options: RegisterExecIPCHandlerOptions = {},
-) {
-  const channel = options.channel ?? EXEC_CHANNEL
-  const eventChannel = options.eventChannel ?? EVENT_CHANNEL
-
+export function registerExecIPCHandler() {
   const handler = (event: Parameters<typeof ipcMain.on>[1] extends (
     event: infer T,
     ...args: any[]
@@ -78,14 +68,14 @@ export function registerExecIPCHandler(
 
       ownerProcesses.set(message.id, child)
 
-      event.sender.send(eventChannel, {
+      event.sender.send(EVENT_CHANNEL, {
         type: "spawn",
         id: message.id,
         pid: child.pid,
       } satisfies ExecEventMessage)
 
       child.stdout?.on("data", (data: Buffer) => {
-        event.sender.send(eventChannel, {
+        event.sender.send(EVENT_CHANNEL, {
           type: "stdout",
           id: message.id,
           data,
@@ -93,7 +83,7 @@ export function registerExecIPCHandler(
       })
 
       child.stderr?.on("data", (data: Buffer) => {
-        event.sender.send(eventChannel, {
+        event.sender.send(EVENT_CHANNEL, {
           type: "stderr",
           id: message.id,
           data,
@@ -101,7 +91,7 @@ export function registerExecIPCHandler(
       })
 
       child.on("error", (error: Error & { code?: string }) => {
-        event.sender.send(eventChannel, {
+        event.sender.send(EVENT_CHANNEL, {
           type: "error",
           id: message.id,
           error: serializeError(error),
@@ -116,7 +106,7 @@ export function registerExecIPCHandler(
           owners.delete(event.sender.id)
         }
 
-        event.sender.send(eventChannel, {
+        event.sender.send(EVENT_CHANNEL, {
           type: "close",
           id: message.id,
           code,
@@ -147,9 +137,9 @@ export function registerExecIPCHandler(
     child.stdin?.end(message.data ? Buffer.from(message.data) : undefined)
   }
 
-  ipcMain.on(channel, handler)
+  ipcMain.on(EXEC_CHANNEL, handler)
 
   return () => {
-    ipcMain.removeListener(channel, handler)
+    ipcMain.removeListener(EXEC_CHANNEL, handler)
   }
 }

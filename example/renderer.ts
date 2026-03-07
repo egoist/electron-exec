@@ -1,4 +1,6 @@
-import { exec } from "../src/index.ts"
+import { exec, registerExecIPCHandler } from "../src/index.ts"
+
+registerExecIPCHandler()
 
 const textDecoder = new TextDecoder()
 const commandInput = document.querySelector<HTMLInputElement>("#command")
