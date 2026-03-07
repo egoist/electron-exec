@@ -9,7 +9,8 @@
     "build:watch": "tsdown --watch",
     "example:build": "rolldown --config ./example/rolldown.config.ts",
     "example:watch": "bun run ./example/dev.ts",
-    "example": "bun run ./example/dev.ts"
+    "example": "bun run ./example/dev.ts",
+    "prepublishOnly": "bun run build"
   },
   "types": "./dist/index.d.mts",
   "exports": {
