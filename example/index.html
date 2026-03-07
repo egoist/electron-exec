@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>electron-exec demo</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #101418;
+        --panel: #182028;
+        --panel-border: #2a3642;
+        --text: #ecf2f8;
+        --muted: #9bb0c4;
+        --accent: #8bd3dd;
+        --danger: #ff7a90;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        padding: 32px;
+        font-family:
+          ui-monospace, "SFMono-Regular", "SF Mono", Menlo, monospace;
+        background:
+          radial-gradient(
+            circle at top,
+            rgba(139, 211, 221, 0.18),
+            transparent 28%
+          ),
+          linear-gradient(180deg, #141b22 0%, var(--bg) 100%);
+        color: var(--text);
+      }
+
+      main {
+        max-width: 1100px;
+        margin: 0 auto;
+      }
+
+      h1 {
+        margin: 0 0 8px;
+        font-size: 32px;
+      }
+
+      p {
+        margin: 0 0 24px;
+        color: var(--muted);
+        line-height: 1.5;
+      }
+
+      .controls,
+      .output {
+        background: rgba(24, 32, 40, 0.92);
+        border: 1px solid var(--panel-border);
+        border-radius: 18px;
+        padding: 20px;
+        backdrop-filter: blur(10px);
+      }
+
+      .controls {
+        display: grid;
+        gap: 14px;
+      }
+
+      label {
+        display: grid;
+        gap: 6px;
+        font-size: 13px;
+        color: var(--muted);
+      }
+
+      input {
+        width: 100%;
+        border: 1px solid var(--panel-border);
+        border-radius: 12px;
+        background: #0f151b;
+        color: var(--text);
+        padding: 12px 14px;
+        font: inherit;
+      }
+
+      textarea {
+        width: 100%;
+        min-height: 120px;
+        border: 1px solid var(--panel-border);
+        border-radius: 12px;
+        background: #0f151b;
+        color: var(--text);
+        padding: 12px 14px;
+        font: inherit;
+        resize: vertical;
+      }
+
+      .actions {
+        display: flex;
+        gap: 12px;
+        align-items: center;
+        flex-wrap: wrap;
+      }
+
+      button {
+        border: 0;
+        border-radius: 999px;
+        padding: 12px 18px;
+        font: inherit;
+        font-weight: 700;
+        cursor: pointer;
+      }
+
+      #run {
+        background: var(--accent);
+        color: #07161a;
+      }
+
+      #kill {
+        background: rgba(255, 122, 144, 0.18);
+        color: #ffd7de;
+      }
+
+      button:disabled {
+        opacity: 0.55;
+        cursor: not-allowed;
+      }
+
+      #status {
+        color: var(--muted);
+      }
+
+      .grid {
+        margin-top: 20px;
+        display: grid;
+        gap: 20px;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .output h2 {
+        margin: 0 0 12px;
+        font-size: 16px;
+      }
+
+      pre {
+        margin: 0;
+        min-height: 320px;
+        max-height: 420px;
+        overflow: auto;
+        white-space: pre-wrap;
+        word-break: break-word;
+        color: #dbe7f3;
+      }
+
+      @media (max-width: 800px) {
+        body {
+          padding: 18px;
+        }
+
+        .grid {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>electron-exec demo</h1>
+      <p>
+        This example runs a shell command from the renderer process, streams
+        stdout and stderr independently, writes to stdin, and lets you terminate
+        the child process over Electron IPC.
+      </p>
+
+      <section class="controls">
+        <label>
+          Command
+          <input id="command" spellcheck="false" />
+        </label>
+        <label>
+          Args
+          <input id="args" spellcheck="false" />
+        </label>
+        <div class="actions">
+          <button id="run">Run command</button>
+          <button id="kill" disabled>Kill process</button>
+          <span id="status">Idle</span>
+        </div>
+        <label>
+          stdin
+          <textarea id="stdin" spellcheck="false"></textarea>
+        </label>
+        <div class="actions">
+          <button id="send-stdin" disabled>Write stdin</button>
+          <button id="end-stdin" disabled>End stdin</button>
+        </div>
+      </section>
+
+      <section class="grid">
+        <article class="output">
+          <h2>stdout</h2>
+          <pre id="stdout"></pre>
+        </article>
+        <article class="output">
+          <h2>stderr</h2>
+          <pre id="stderr"></pre>
+        </article>
+      </section>
+    </main>
+    <script src="./dist/renderer.js"></script>
+  </body>
+</html>

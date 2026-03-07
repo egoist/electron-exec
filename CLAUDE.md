@@ -1,0 +1,1 @@
+- use `bun` as the package manager

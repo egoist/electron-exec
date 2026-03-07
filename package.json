@@ -1,0 +1,39 @@
+{
+  "name": "electron-exec",
+  "module": "./dist/index.mjs",
+  "version": "0.0.0",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "build": "tsdown",
+    "build:watch": "tsdown --watch",
+    "example:build": "rolldown --config ./example/rolldown.config.ts",
+    "example:watch": "bun run ./example/dev.ts",
+    "example": "bun run ./example/dev.ts"
+  },
+  "types": "./dist/index.d.mts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.mts",
+      "import": "./dist/index.mjs"
+    },
+    "./main": {
+      "types": "./dist/main.d.mts",
+      "import": "./dist/main.mjs"
+    }
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "electron": "^40.0.0",
+    "rolldown": "^1.0.0-rc.7",
+    "tsdown": "^0.21.0",
+    "tree-kill": "^1.2.2"
+  },
+  "peerDependencies": {
+    "electron": ">=28",
+    "typescript": ">=5"
+  },
+  "files": [
+    "dist"
+  ]
+}
