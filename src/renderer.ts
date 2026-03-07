@@ -11,10 +11,7 @@ type Listener = (...args: any[]) => void
 
 interface IpcRendererLike {
   send(channel: string, ...args: any[]): void
-  on(
-    channel: string,
-    listener: (event: unknown, ...args: any[]) => void,
-  ): void
+  on(channel: string, listener: (event: unknown, ...args: any[]) => void): void
 }
 
 export interface RendererExecStream {
@@ -55,9 +52,8 @@ export interface RendererExecProcess {
 }
 
 function getIpcRenderer(): IpcRendererLike {
-  const ipcRenderer = globalThis.ipcRenderer
-  if (!ipcRenderer) {
-    throw new Error("ipcRenderer is not available on globalThis")
+  if (typeof ipcRenderer === "undefined") {
+    throw new Error("ipcRenderer is not available on global scope")
   }
   return ipcRenderer
 }
