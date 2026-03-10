@@ -6,25 +6,28 @@ import {
   type ExecEventMessage,
   type ExecRequestMessage,
 } from "./shared.ts"
+import treeKill from "tree-kill"
 
 type ProcessOwnerMap = Map<string, ChildProcess>
-type ManagedChildProcess = ChildProcess & {
-  on(
-    event: "error",
-    listener: (error: Error & { code?: string }) => void,
-  ): ManagedChildProcess
-  on(
-    event: "close",
-    listener: (code: number | null, signal: NodeJS.Signals | null) => void,
-  ): ManagedChildProcess
-}
 
 const owners = new Map<number, ProcessOwnerMap>()
 
-function serializeError(error: Error & { code?: string }): Extract<
-  ExecEventMessage,
-  { type: "error" }
->["error"] {
+function killChild(child: ChildProcess, signal?: NodeJS.Signals | number) {
+  const pid = child.pid
+  if (pid) {
+    return new Promise<void>((resolve, reject) => {
+      treeKill(pid, signal, (error) => {
+        if (error) return reject(error)
+        resolve()
+      })
+    })
+  }
+  child.kill(signal)
+}
+
+function serializeError(
+  error: Error & { code?: string },
+): Extract<ExecEventMessage, { type: "error" }>["error"] {
   return {
     name: error.name,
     message: error.message,
@@ -34,84 +37,95 @@ function serializeError(error: Error & { code?: string }): Extract<
 }
 
 export function registerExecIPCHandler() {
-  const handler = (event: Parameters<typeof ipcMain.on>[1] extends (
-    event: infer T,
-    ...args: any[]
-  ) => void
-    ? T
-    : never,
-  message: ExecRequestMessage) => {
+  const handler = (
+    event: Parameters<typeof ipcMain.on>[1] extends (
+      event: infer T,
+      ...args: any[]
+    ) => void
+      ? T
+      : never,
+    message: ExecRequestMessage,
+  ) => {
     if (message.type === "spawn") {
-      const child = spawn(message.command, message.args, {
+      const child: ChildProcess = spawn(message.command, message.args, {
         cwd: message.options?.cwd,
         env: message.options?.env,
         shell: message.options?.shell,
         stdio: ["pipe", "pipe", "pipe"],
-      }) as ManagedChildProcess
+      })
 
-      let ownerProcesses = owners.get(event.sender.id)
+      const sender = event.sender
+      const senderId = sender.id
+
+      const safeSend = (msg: ExecEventMessage) => {
+        if (!sender.isDestroyed()) {
+          sender.send(EVENT_CHANNEL, msg)
+        }
+      }
+
+      let ownerProcesses = owners.get(senderId)
       if (!ownerProcesses) {
         ownerProcesses = new Map()
-        owners.set(event.sender.id, ownerProcesses)
+        owners.set(senderId, ownerProcesses)
 
-        event.sender.once("destroyed", () => {
-          const senderProcesses = owners.get(event.sender.id)
+        sender.once("destroyed", () => {
+          const senderProcesses = owners.get(senderId)
           if (!senderProcesses) {
             return
           }
           for (const proc of senderProcesses.values()) {
-            proc.kill()
+            killChild(proc)
           }
-          owners.delete(event.sender.id)
+          owners.delete(senderId)
         })
       }
 
       ownerProcesses.set(message.id, child)
 
-      event.sender.send(EVENT_CHANNEL, {
+      safeSend({
         type: "spawn",
         id: message.id,
         pid: child.pid,
-      } satisfies ExecEventMessage)
+      })
 
       child.stdout?.on("data", (data: Buffer) => {
-        event.sender.send(EVENT_CHANNEL, {
+        safeSend({
           type: "stdout",
           id: message.id,
           data,
-        } satisfies ExecEventMessage)
+        })
       })
 
       child.stderr?.on("data", (data: Buffer) => {
-        event.sender.send(EVENT_CHANNEL, {
+        safeSend({
           type: "stderr",
           id: message.id,
           data,
-        } satisfies ExecEventMessage)
+        })
       })
 
       child.on("error", (error: Error & { code?: string }) => {
-        event.sender.send(EVENT_CHANNEL, {
+        safeSend({
           type: "error",
           id: message.id,
           error: serializeError(error),
-        } satisfies ExecEventMessage)
+        })
       })
 
       child.on(
         "close",
         (code: number | null, signal: NodeJS.Signals | null) => {
-        ownerProcesses.delete(message.id)
-        if (ownerProcesses.size === 0) {
-          owners.delete(event.sender.id)
-        }
+          ownerProcesses.delete(message.id)
+          if (ownerProcesses.size === 0) {
+            owners.delete(senderId)
+          }
 
-        event.sender.send(EVENT_CHANNEL, {
-          type: "close",
-          id: message.id,
-          code,
-          signal,
-        } satisfies ExecEventMessage)
+          safeSend({
+            type: "close",
+            id: message.id,
+            code,
+            signal,
+          })
         },
       )
 
@@ -125,7 +139,7 @@ export function registerExecIPCHandler() {
     }
 
     if (message.type === "kill") {
-      child.kill(message.signal)
+      killChild(child, message.signal)
       return
     }
 
