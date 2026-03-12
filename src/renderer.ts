@@ -9,7 +9,7 @@ export type ExecOptions = ExecSerializableOptions
 
 type Listener = (...args: any[]) => void
 
-interface IpcRendererLike {
+export interface ElectronExecIPC {
   send(channel: string, ...args: any[]): void
   on(channel: string, listener: (event: unknown, ...args: any[]) => void): void
   removeListener(
@@ -55,11 +55,11 @@ export interface RendererExecProcess {
   ): this
 }
 
-function getIpcRenderer(): IpcRendererLike {
-  if (typeof ipcRenderer === "undefined") {
-    throw new Error("ipcRenderer is not available on global scope")
+function getIpcRenderer(): ElectronExecIPC {
+  if (typeof electronExecIPC === "undefined") {
+    throw new Error("electronExecIPC is not available on global scope")
   }
-  return ipcRenderer
+  return electronExecIPC
 }
 
 function toBytes(data: string | Uint8Array) {

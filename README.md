@@ -10,6 +10,24 @@ import { registerExecIPCHandler } from "electron-exec/main"
 registerExecIPCHandler()
 ```
 
+In preload script:
+
+```js
+const { contextBridge, ipcRenderer } = require("electron")
+
+const electronExecIPC = {
+  send: ipcRenderer.send.bind(ipcRenderer),
+  on: ipcRenderer.on.bind(ipcRenderer),
+  removeListener: ipcRenderer.removeListener.bind(ipcRenderer),
+}
+
+if (process.contextIsolated) {
+  contextBridge.exposeInMainWorld("electronExecIPC", electronExecIPC)
+} else {
+  globalThis.electronExecIPC = electronExecIPC
+}
+```
+
 In renderer process:
 
 ```ts
@@ -39,7 +57,7 @@ proc.on("close", (code) => {
 })
 ```
 
-`registerExecIPCHandler()` wires the renderer-side IPC event listener. Call it once during renderer startup before spawning processes.
+The preload script should expose a minimal `ipcRenderer` surface as `globalThis.electronExecIPC`. If you keep Electron's default `contextIsolation: true`, expose it with `contextBridge.exposeInMainWorld(...)` as shown above. `registerExecIPCHandler()` wires the renderer-side IPC event listener. Call it once during renderer startup before spawning processes.
 
 ## Demo app
 
@@ -67,6 +85,6 @@ bun run example:build
 ```
 
 The example keeps `nodeIntegration` off for the renderer, exposes
-`ipcRenderer` through a preload script as `globalThis.ipcRenderer`, and
-registers the renderer IPC listener during startup in
+`globalThis.electronExecIPC` through a local preload script, and registers the
+renderer IPC listener during startup in
 [`example/renderer.ts`](/Users/egoist/dev/electron-exec/example/renderer.ts).
